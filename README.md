@@ -1,5 +1,7 @@
 # StockWise Solutions
 
+## CAA900 Capstone Project
+
 ## Team Members
 
 - Clement Okonkwo (GitHub: Emes101)

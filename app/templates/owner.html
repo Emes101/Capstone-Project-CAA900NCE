@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Owner dashboard{% endblock %}
+{% block content %}
+<p class="notice">Demo mode: this page uses sample data. Owner sign-in is added in Progress Submission 3.</p>
+
+<h1>Owner dashboard</h1>
+
+<div class="tiles">
+  <div class="tile"><p class="tile-num">{{ summary.total }}</p><p>Products</p></div>
+  <div class="tile tile-low"><p class="tile-num">{{ summary.low }}</p><p>Low stock</p></div>
+  <div class="tile tile-out"><p class="tile-num">{{ summary.out }}</p><p>Out of stock</p></div>
+</div>
+
+<h2>Reorder soon</h2>
+{% if low_stock %}
+<ul class="reorder">
+  {% for p in low_stock %}
+  <li><b>{{ p.name }}</b>: {{ p.stock }} left (reorder at {{ p.reorder_level }}) · {{ p.supplier }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>Nothing is running low.</p>
+{% endif %}
+
+<h2>All products</h2>
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr><th>SKU</th><th>Product</th><th>Supplier</th><th class="num">Stock</th><th class="num">Reorder at</th><th>Status</th><th>Record a sale</th><th>Restock</th></tr>
+  </thead>
+  <tbody>
+  {% for p in products %}
+    {% set s = status_of(p) %}
+    <tr class="row-{{ s }}">
+      <td>{{ p.sku }}</td>
+      <td>{{ p.name }}</td>
+      <td>{{ p.supplier }}</td>
+      <td class="num">{{ p.stock }}</td>
+      <td class="num">{{ p.reorder_level }}</td>
+      <td><span class="pill pill-{{ s }}">{{ labels[s] }}</span></td>
+      <td>
+        <form method="post" action="{{ url_for('owner_sale') }}" class="inline">
+          <input type="hidden" name="sku" value="{{ p.sku }}">
+          <label class="sr-only" for="sale-{{ p.sku }}">Quantity sold</label>
+          <input id="sale-{{ p.sku }}" name="quantity" type="number" min="1" value="1">
+          <button type="submit">Sell</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('owner_restock') }}" class="inline">
+          <input type="hidden" name="sku" value="{{ p.sku }}">
+          <label class="sr-only" for="restock-{{ p.sku }}">Quantity received</label>
+          <input id="restock-{{ p.sku }}" name="quantity" type="number" min="1" value="10">
+          <button type="submit" class="secondary">Add</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

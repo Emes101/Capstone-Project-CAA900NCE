@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Check availability{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Is it in stock?</h1>
+  <p>Check what Michael's store has on the shelf before you visit.</p>
+  <form class="search" method="get" action="{{ url_for('customer') }}" role="search">
+    <label for="q" class="sr-only">Search products</label>
+    <input id="q" name="q" type="search" value="{{ query }}" placeholder="Search, e.g. charger, paper, mouse">
+    <button type="submit">Search</button>
+  </form>
+</section>
+
+{% if products %}
+<ul class="cards">
+  {% for p in products %}
+  <li class="card">
+    <p class="category">{{ p.category }}</p>
+    <h2>{{ p.name }}</h2>
+    <p class="price">${{ '%.2f' % p.price }}</p>
+    <p class="pill pill-{{ 'in' if p.status == 'In stock' else ('low' if p.status == 'Low stock' else 'out') }}">{{ p.status }}</p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No products match "{{ query }}".</p>
+{% endif %}
+{% endblock %}

@@ -9,11 +9,14 @@
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="{{ url_for('customer') }}">StockWise <span>Solutions</span></a>
+      <a class="brand" href="{{ url_for('owner') if request.endpoint and request.endpoint.startswith('owner') else url_for('customer') }}">StockWise <span>{{ 'Owner' if request.endpoint and request.endpoint.startswith('owner') else 'Solutions' }}</span></a>
+      {# Customers never see a link to the owner area. The owner opens /owner directly (bookmark it). #}
+      {% if request.endpoint and request.endpoint.startswith('owner') %}
       <nav>
-        <a href="{{ url_for('customer') }}" class="{{ 'active' if request.endpoint == 'customer' }}">Shop availability</a>
-        <a href="{{ url_for('owner') }}" class="{{ 'active' if request.endpoint == 'owner' }}">Owner dashboard</a>
+        <span class="area-label">Owner area</span>
+        <a href="{{ url_for('customer') }}" target="_blank" rel="noopener">View shop as a customer</a>
       </nav>
+      {% endif %}
     </div>
   </header>
 

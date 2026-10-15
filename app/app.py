@@ -1,26 +1,34 @@
 """StockWise Solutions web app (Flask).
 
 One app serves both views and a small API:
-  /            customer view: search products and see availability
-  /owner       owner view: stock levels, low-stock list, record sales and restocks
-  /api/...     JSON endpoints used now for testing and later by the pages
+  /              customer view: search products and see how many are in stock
+  /owner/login   owner enters the access code
+  /owner         owner dashboard: stock levels, low-stock list, sales and restocks
+  /api/...       JSON endpoints used now for testing and later by the pages
 
-Sample data only. Owner sign-in (Entra External ID) and the Azure SQL database
-are added in Progress Submission 3.
+Sample data only. The access code is a simple first step; full owner sign-in
+(Entra External ID) and the Azure SQL database come in Progress Submission 3.
 """
 
+import hmac
 import os
+from functools import wraps
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from flask import (Flask, flash, jsonify, redirect, render_template, request,
+                   session, url_for)
 
 from inventory import STATUS_LABELS, Inventory, StockError
 
 app = Flask(__name__)
 
-# The secret key signs the short messages shown after a form is sent.
+# The secret key signs the session cookie that remembers the owner is signed in.
 # It is read from an App Service setting, never written in the code.
 # If none is set (for example on your laptop), a random one is made at start-up.
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(32)
+
+# The owner access code. On Azure it is read from the OWNER_ACCESS_CODE app
+# setting. The default below is only for running on a laptop.
+OWNER_ACCESS_CODE = os.environ.get("OWNER_ACCESS_CODE", "ACS730")
 
 inventory = Inventory.from_file()
 
@@ -28,7 +36,21 @@ inventory = Inventory.from_file()
 @app.context_processor
 def shared_values():
     # Values every page template can use.
-    return {"status_of": Inventory.status, "labels": STATUS_LABELS}
+    return {
+        "status_of": Inventory.status,
+        "labels": STATUS_LABELS,
+        "is_owner": session.get("is_owner", False),
+    }
+
+
+def owner_required(view):
+    """Send anyone without the access code to the code page."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not session.get("is_owner"):
+            return redirect(url_for("owner_login"))
+        return view(*args, **kwargs)
+    return wrapper
 
 
 # ---------- Customer view ----------
@@ -40,13 +62,37 @@ def customer():
     return render_template("customer.html", products=products, query=query)
 
 
-# ---------- Owner view ----------
+# ---------- Owner access code ----------
+
+@app.route("/owner/login", methods=["GET", "POST"])
+def owner_login():
+    if request.method == "POST":
+        entered = request.form.get("code", "").strip()
+        # compare_digest compares safely, without revealing how close a guess was.
+        if hmac.compare_digest(entered.upper(), OWNER_ACCESS_CODE.upper()):
+            session.clear()
+            session["is_owner"] = True
+            return redirect(url_for("owner"))
+        flash("That code is not correct. Please try again.", "error")
+    return render_template("owner_login.html")
+
+
+@app.post("/owner/logout")
+def owner_logout():
+    session.clear()
+    flash("You have signed out of the owner dashboard.", "ok")
+    return redirect(url_for("customer"))
+
+
+# ---------- Owner dashboard (code required) ----------
 
 @app.get("/owner")
+@owner_required
 def owner():
     products = inventory.all()
     summary = {
         "total": len(products),
+        "units": sum(p["stock"] for p in products),
         "low": sum(1 for p in products if Inventory.status(p) == "low"),
         "out": sum(1 for p in products if Inventory.status(p) == "out"),
     }
@@ -59,6 +105,7 @@ def owner():
 
 
 @app.post("/owner/sale")
+@owner_required
 def owner_sale():
     try:
         product = inventory.record_sale(request.form["sku"], request.form["quantity"])
@@ -69,6 +116,7 @@ def owner_sale():
 
 
 @app.post("/owner/restock")
+@owner_required
 def owner_restock():
     try:
         product = inventory.restock(request.form["sku"], request.form["quantity"])
@@ -88,10 +136,10 @@ def health():
 
 @app.get("/api/products")
 def api_products():
-    # Public endpoint: availability only, no exact stock counts.
+    # Public endpoint: what customers see (name, price, units in stock, status).
     return jsonify([inventory.public_view(p) for p in inventory.search(request.args.get("q"))])
 
 
 if __name__ == "__main__":
     # Local run only. On Azure, gunicorn starts the app (see infra/main.bicep).
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

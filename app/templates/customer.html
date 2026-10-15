@@ -18,6 +18,7 @@
     <p class="category">{{ p.category }}</p>
     <h2>{{ p.name }}</h2>
     <p class="price">${{ '%.2f' % p.price }}</p>
+    <p class="units"><span class="units-num">{{ p.stock }}</span> {{ 'unit' if p.stock == 1 else 'units' }} in stock</p>
     <p class="pill pill-{{ 'in' if p.status == 'In stock' else ('low' if p.status == 'Low stock' else 'out') }}">{{ p.status }}</p>
   </li>
   {% endfor %}

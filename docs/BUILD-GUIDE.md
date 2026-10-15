@@ -18,7 +18,8 @@ At this stage the app uses **sample data** kept in memory. The Azure SQL databas
 │   │   └── sample_products.json   12 sample products (synthetic data)
 │   ├── templates/            HTML pages
 │   │   ├── base.html         Shared layout: header, menu, messages, footer
-│   │   ├── customer.html     Customer view: search and availability
+│   │   ├── customer.html     Customer view: search and units in stock
+│   │   ├── owner_login.html  Owner access code page
 │   │   └── owner.html        Owner view: totals, reorder list, sell and restock
 │   └── static/
 │       └── style.css         Page styling
@@ -28,7 +29,8 @@ At this stage the app uses **sample data** kept in memory. The Azure SQL databas
 │   ├── deploy.ps1            One-command deploy for Windows PowerShell
 │   └── deploy.sh             One-command deploy for macOS, Linux or Git Bash
 ├── tests/
-│   └── test_inventory.py     Automated tests for the stock rules
+│   ├── test_inventory.py     Automated tests for the stock rules
+│   └── test_owner_access.py  Automated tests for the owner access code
 ├── docs/
 │   └── BUILD-GUIDE.md        This guide
 └── .gitignore                Keeps secrets, virtual environments and zips out of Git
@@ -40,10 +42,11 @@ At this stage the app uses **sample data** kept in memory. The Azure SQL databas
 |---|---|---|
 | `app/inventory.py` | Holds the business rules. A sale can never take stock below zero, and a lock makes sure two sales of the last item cannot both succeed. | Shows we solved the pain point properly, not just drew pages. |
 | `app/app.py` | Connects web addresses to pages: `/` (customer), `/owner` (owner), `/api/products`, `/api/health`. | The API is the start of our backend for Submission 3. |
-| `customer.html` | Customers search and see **In stock / Low stock / Out of stock**. They never see exact counts. | Matches our data classification: exact stock is internal. |
+| `customer.html` | Customers search and see the **number of units in stock** and a status (In stock / Low stock / Out of stock). | Suppliers and reorder levels stay owner-only. |
+| `owner_login.html` | The owner enters an access code before the dashboard opens. Selling and restocking are blocked without it. | A simple access control until Entra External ID sign-in in Submission 3. |
 | `owner.html` | Michael sees totals, a reorder list with suppliers, and can record sales and restocks. | Our owner view for Submission 2. |
 | `infra/main.bicep` | Creates the App Service plan and web app from code, with tags, HTTPS only, TLS 1.2 and FTP turned off. | Infrastructure as code, named and tagged resources, secure defaults. |
-| `tests/test_inventory.py` | Ten automated tests for the stock rules. | Evidence of quality; later run automatically by GitHub Actions. |
+| `tests/` | Seventeen automated tests: stock rules and the owner access code. | Evidence of quality; later run automatically by GitHub Actions. |
 
 No secrets are stored in the code. The one secret the app uses (`FLASK_SECRET_KEY`) is read from an App Service setting.
 
@@ -114,7 +117,9 @@ cd app
 python app.py
 ```
 
-Open **http://127.0.0.1:5000** (customer view) and **http://127.0.0.1:5000/owner** (owner view). Try selling more than the stock left: the app refuses and shows a message. Press **Ctrl+C** to stop.
+Open **http://127.0.0.1:5001** (customer view) and **http://127.0.0.1:5001/owner** (owner view). The owner view asks for the access code; on a laptop it is **ACS730**. Try selling more than the stock left: the app refuses and shows a message. Press **Ctrl+C** to stop.
+
+> On a Mac, use `python3` until the virtual environment is active, and use port 5001: port 5000 is taken by AirPlay Receiver.
 
 > If PowerShell blocks `Activate.ps1`, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, then try again.
 
@@ -128,7 +133,7 @@ From the repository root (with the virtual environment active):
 pytest
 ```
 
-You should see **10 passed**. Take a screenshot; it is useful evidence for the report.
+You should see **17 passed**. Take a screenshot; it is useful evidence for the report.
 
 ---
 
@@ -167,12 +172,12 @@ The script:
 
 At the end it prints our two public links. The first start can take two to three minutes.
 
-**Step 3. Add the secret key setting (once).** Use any long random value; never commit it.
+**Step 3. Add the secret key and the owner access code (once).** Never commit these values.
 
 ```bash
 az webapp config appsettings set --resource-group caa900-stockwise-rg \
   --name <web app name printed by the script> \
-  --settings FLASK_SECRET_KEY=<a long random value>
+  --settings FLASK_SECRET_KEY=<a long random value> OWNER_ACCESS_CODE=<the owner code>
 ```
 
 To generate a random value: `python -c "import secrets; print(secrets.token_hex(32))"`

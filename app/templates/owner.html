@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Owner dashboard{% endblock %}
 {% block content %}
-<p class="notice">Demo mode: this page uses sample data. Owner sign-in is added in Progress Submission 3.</p>
-
-<h1>Owner dashboard</h1>
+<div class="owner-head">
+  <h1>Owner dashboard</h1>
+  <form method="post" action="{{ url_for('owner_logout') }}"><button type="submit" class="secondary">Sign out</button></form>
+</div>
 
 <div class="tiles">
   <div class="tile"><p class="tile-num">{{ summary.total }}</p><p>Products</p></div>
+  <div class="tile"><p class="tile-num">{{ summary.units }}</p><p>Units in stock</p></div>
   <div class="tile tile-low"><p class="tile-num">{{ summary.low }}</p><p>Low stock</p></div>
   <div class="tile tile-out"><p class="tile-num">{{ summary.out }}</p><p>Out of stock</p></div>
 </div>

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Owner access{% endblock %}
+{% block content %}
+<section class="login">
+  <h1>Owner access</h1>
+  <p>Enter the owner access code to open the dashboard.</p>
+  <form method="post" action="{{ url_for('owner_login') }}" class="login-form">
+    <label for="code">Access code</label>
+    <input id="code" name="code" type="password" autocomplete="off" required autofocus>
+    <button type="submit">Open dashboard</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,90 @@
+# StockWise Solutions: test and deploy to Azure.
+# - Every pull request to main: run the tests.
+# - Every merge (push) to main, or a manual run: run the tests, then deploy
+#   the infrastructure (Bicep) and the app to Azure App Service.
+# Signs in to Azure with OIDC (a federated credential on a managed identity),
+# so no Azure password or key is stored in GitHub. See docs/CI-CD.md.
+
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # lets the workflow request a sign-in token from GitHub (OIDC)
+  contents: read
+
+env:
+  RESOURCE_GROUP: caa900-stockwise-rg
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install packages
+        run: pip install -r app/requirements.txt pytest
+
+      - name: Run tests
+        run: python -m pytest
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure (Bicep)
+        id: infra
+        run: |
+          APP=$(az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "github-run-${{ github.run_number }}" \
+            --template-file infra/main.bicep \
+            --query properties.outputs.webAppName.value --output tsv)
+          echo "app=$APP" >> "$GITHUB_OUTPUT"
+
+      - name: Set app settings from GitHub secrets
+        run: |
+          az webapp config appsettings set \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "${{ steps.infra.outputs.app }}" \
+            --settings FLASK_SECRET_KEY="${{ secrets.FLASK_SECRET_KEY }}" \
+                       OWNER_ACCESS_CODE="${{ secrets.OWNER_ACCESS_CODE }}" \
+                       SCM_DO_BUILD_DURING_DEPLOYMENT=true \
+            --output none
+
+      - name: Package the app
+        run: cd app && zip -qr ../app.zip . -x '__pycache__/*'
+
+      - name: Deploy the app
+        run: |
+          az webapp deploy \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "${{ steps.infra.outputs.app }}" \
+            --src-path app.zip --type zip --output none
+
+      - name: Show the live URL
+        run: |
+          HOST=$(az webapp show --resource-group "$RESOURCE_GROUP" \
+            --name "${{ steps.infra.outputs.app }}" --query defaultHostName --output tsv)
+          echo "Customer view: https://$HOST/" >> "$GITHUB_STEP_SUMMARY"
+          echo "Owner view: https://$HOST/owner" >> "$GITHUB_STEP_SUMMARY"
+          echo "Live at https://$HOST/"

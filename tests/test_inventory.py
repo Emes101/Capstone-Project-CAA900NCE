@@ -53,11 +53,13 @@ def test_restock_adds_stock():
     assert inv.get("B")["stock"] == 11
 
 
-def test_customer_view_hides_exact_stock():
+def test_customer_view_shows_stock_but_not_supplier():
     inv = make_inventory()
     view = inv.public_view(inv.get("A"))
-    assert "stock" not in view
+    assert view["stock"] == 5
     assert view["status"] == "In stock"
+    assert "supplier" not in view
+    assert "reorder_level" not in view
 
 
 def test_low_stock_list():

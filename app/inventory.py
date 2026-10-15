@@ -68,12 +68,14 @@ class Inventory:
         return sorted(items, key=lambda p: p["stock"])
 
     def public_view(self, product):
-        """What a customer may see: availability only, never exact counts."""
+        """What a customer may see: product details and units in stock.
+        Suppliers and reorder levels stay internal (owner only)."""
         return {
             "sku": product["sku"],
             "name": product["name"],
             "category": product["category"],
             "price": product["price"],
+            "stock": product["stock"],
             "status": STATUS_LABELS[self.status(product)],
         }
 

@@ -53,3 +53,71 @@ Microsoft Azure
 ## Repository
 
 Capstone Project - CAA900NCE
+
+## How to run the app
+
+### What you need
+- Python 3.11 or 3.12
+- Git
+- Azure CLI (only to deploy)
+
+### 1. Get the code
+```bash
+git clone https://github.com/Emes101/Capstone-Project-CAA900NCE.git
+cd Capstone-Project-CAA900NCE
+```
+
+### 2. Set up Python (first time only)
+
+**macOS / Linux**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r app/requirements.txt pytest
+```
+
+**Windows (PowerShell)**
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r app/requirements.txt pytest
+```
+
+Each time you open a new terminal, turn the environment on again (`source .venv/bin/activate` or `.venv\Scripts\Activate.ps1`). The prompt shows `(.venv)` when it is on.
+
+### 3. Run the tests
+```bash
+python -m pytest
+```
+All 17 tests should pass.
+
+### 4. Start the app
+```bash
+cd app
+python -m flask --app app run --port 5001 --debug
+```
+
+| Page | Address | Who uses it |
+|---|---|---|
+| Customer view | http://127.0.0.1:5001/ | Customers check what is in stock |
+| Owner dashboard | http://127.0.0.1:5001/owner | Michael records sales and restocks (access code required) |
+
+Press **Ctrl+C** to stop the app.
+
+> **Note:** The app uses sample data kept in memory, so stock changes reset when the app restarts. A database is added in Progress Submission 3.
+
+### 5. Deploy to Azure (subscription owner only)
+```bash
+az login
+az account set --subscription "Azure for Students"
+bash scripts/deploy.sh        # Windows: .\scripts\deploy.ps1
+```
+The script creates the resource group `caa900-stockwise-rg`, deploys the infrastructure from `infra/main.bicep`, uploads the app and prints the public links.
+
+Then set the two app settings once (never commit these values):
+```bash
+az webapp config appsettings set -g caa900-stockwise-rg -n <web app name> \
+  --settings FLASK_SECRET_KEY=<long random value> OWNER_ACCESS_CODE=<owner code>
+```
+
+See [docs/BUILD-GUIDE.md](docs/BUILD-GUIDE.md) for full details and troubleshooting.

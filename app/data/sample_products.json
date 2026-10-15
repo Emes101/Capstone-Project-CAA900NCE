@@ -1,0 +1,14 @@
+[
+  {"sku": "EL-1001", "name": "USB-C charger, 30 W", "category": "Electronics", "price": 34.99, "stock": 18, "reorder_level": 6, "supplier": "Northline Electronics Supply"},
+  {"sku": "EL-1002", "name": "Power bank, 10,000 mAh", "category": "Electronics", "price": 39.99, "stock": 4, "reorder_level": 5, "supplier": "Northline Electronics Supply"},
+  {"sku": "EL-1003", "name": "Bluetooth earbuds", "category": "Electronics", "price": 59.99, "stock": 9, "reorder_level": 4, "supplier": "Northline Electronics Supply"},
+  {"sku": "MA-2001", "name": "Phone case, 6.1 inch", "category": "Mobile accessories", "price": 19.99, "stock": 25, "reorder_level": 8, "supplier": "Lakeshore Accessories"},
+  {"sku": "MA-2002", "name": "Tempered glass screen protector", "category": "Mobile accessories", "price": 12.99, "stock": 0, "reorder_level": 10, "supplier": "Lakeshore Accessories"},
+  {"sku": "MA-2003", "name": "USB-C to USB-C cable, 2 m", "category": "Mobile accessories", "price": 14.99, "stock": 31, "reorder_level": 10, "supplier": "Lakeshore Accessories"},
+  {"sku": "OS-3001", "name": "Printer paper, A4, 500 sheets", "category": "Office supplies", "price": 9.49, "stock": 40, "reorder_level": 15, "supplier": "Maple Office Wholesale"},
+  {"sku": "OS-3002", "name": "Ballpoint pens, 12-pack", "category": "Office supplies", "price": 6.99, "stock": 7, "reorder_level": 8, "supplier": "Maple Office Wholesale"},
+  {"sku": "OS-3003", "name": "Sticky notes, 6-pack", "category": "Office supplies", "price": 7.49, "stock": 22, "reorder_level": 8, "supplier": "Maple Office Wholesale"},
+  {"sku": "CP-4001", "name": "Wireless mouse", "category": "Computer peripherals", "price": 24.99, "stock": 12, "reorder_level": 5, "supplier": "Northline Electronics Supply"},
+  {"sku": "CP-4002", "name": "Mechanical keyboard", "category": "Computer peripherals", "price": 89.99, "stock": 3, "reorder_level": 3, "supplier": "Northline Electronics Supply"},
+  {"sku": "CP-4003", "name": "HD webcam, 1080p", "category": "Computer peripherals", "price": 49.99, "stock": 6, "reorder_level": 4, "supplier": "Northline Electronics Supply"}
+]

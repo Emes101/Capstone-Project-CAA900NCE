@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 env:
-  RESOURCE_GROUP: caa900-stockwise-rg
+  RESOURCE_GROUP: caa900_stockwiseRG
 
 jobs:
   test:

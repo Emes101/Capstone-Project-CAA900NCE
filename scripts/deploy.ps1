@@ -3,7 +3,7 @@
 # Usage: .\scripts\deploy.ps1
 
 $ErrorActionPreference = "Stop"
-$ResourceGroup = "caa900-stockwise-rg"
+$ResourceGroup = "caa900_stockwiseRG"
 $Location = "canadacentral"
 
 Write-Host "1/4 Creating the resource group (skipped if it exists)..."

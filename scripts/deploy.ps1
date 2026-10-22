@@ -12,7 +12,7 @@ az group create --name $ResourceGroup --location $Location `
 
 Write-Host "2/4 Creating the App Service plan and web app from infra/main.bicep..."
 $App = az deployment group create --resource-group $ResourceGroup `
-  --template-file infra/main.bicep `
+  --parameters infra/main.bicepparam `
   --query properties.outputs.webAppName.value --output tsv
 
 Write-Host "3/4 Packaging the app folder..."

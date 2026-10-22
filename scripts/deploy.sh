@@ -13,7 +13,7 @@ az group create --name "$RESOURCE_GROUP" --location "$LOCATION" \
 
 echo "2/4 Creating the App Service plan and web app from infra/main.bicep..."
 APP=$(az deployment group create --resource-group "$RESOURCE_GROUP" \
-  --template-file infra/main.bicep \
+  --parameters infra/main.bicepparam \
   --query properties.outputs.webAppName.value --output tsv)
 
 echo "3/4 Packaging the app folder..."

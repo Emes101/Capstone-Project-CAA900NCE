@@ -6,8 +6,9 @@ One app serves both views and a small API:
   /owner         owner dashboard: stock levels, low-stock list, sales and restocks
   /api/...       JSON endpoints used now for testing and later by the pages
 
-Sample data only. The access code is a simple first step; full owner sign-in
-(Entra External ID) and the Azure SQL database come in Progress Submission 3.
+Stock is saved in Azure Cosmos DB for MongoDB when MONGODB_URI is set (on Azure),
+and kept in memory from the sample file otherwise (on a laptop). The access code is
+a simple first step; full owner sign-in (Entra External ID) comes next.
 """
 
 import hmac
@@ -30,7 +31,14 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(32)
 # setting. The default below is only for running on a laptop.
 OWNER_ACCESS_CODE = os.environ.get("OWNER_ACCESS_CODE", "ACS730")
 
-inventory = Inventory.from_file()
+# On Azure, MONGODB_URI is set by infra/main.bicep, so stock is saved in the
+# database. On a laptop it is not set, so the app uses the sample file in memory.
+MONGODB_URI = os.environ.get("MONGODB_URI")
+if MONGODB_URI:
+    from mongo_inventory import MongoInventory
+    inventory = MongoInventory.connect(MONGODB_URI, os.environ.get("MONGODB_DB", "stockwise"))
+else:
+    inventory = Inventory.from_file()
 
 
 @app.context_processor
@@ -131,7 +139,7 @@ def owner_restock():
 @app.get("/api/health")
 def health():
     # Used by monitoring and by us to check the app is running.
-    return jsonify(status="ok")
+    return jsonify(status="ok", storage="database" if MONGODB_URI else "memory")
 
 
 @app.get("/api/products")

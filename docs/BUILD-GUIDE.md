@@ -102,7 +102,7 @@ Suggested split, so both of us have commits:
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -r app/requirements.txt pytest
+pip install -r app/requirements.txt pytest mongomock
 cd app
 python app.py
 ```
@@ -112,7 +112,7 @@ python app.py
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r app/requirements.txt pytest
+pip install -r app/requirements.txt pytest mongomock
 cd app
 python app.py
 ```
@@ -133,7 +133,7 @@ From the repository root (with the virtual environment active):
 pytest
 ```
 
-You should see **17 passed**. Take a screenshot; it is useful evidence for the report.
+You should see **23 passed**. Take a screenshot; it is useful evidence for the report.
 
 ---
 

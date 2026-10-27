@@ -1,4 +1,4 @@
-"""Tests for customer sign-up and sign-in through the web pages.
+"""Tests for the landing page and customer sign-up and sign-in.
 Run from the repository root with: pytest"""
 
 import sys
@@ -81,7 +81,7 @@ def test_login_does_not_redirect_to_other_sites(client):
     client.post("/logout")
     response = client.post("/login", data={"email": email, "password": "customer-pass-1",
                                            "next": "//evil.example.com"})
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/shop"
 
 
 def test_api_me_never_shows_the_password_hash(client):
@@ -89,6 +89,33 @@ def test_api_me_never_shows_the_password_hash(client):
     assert "password_hash" not in client.get("/api/me").get_json()
 
 
-def test_sign_in_and_sign_up_links_on_customer_page(client):
-    page = client.get("/").data
-    assert b'href="/login"' in page and b'href="/signup"' in page
+def test_landing_page_is_public_and_shows_no_products(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert b'href="/login"' in response.data and b'href="/signup"' in response.data
+    assert b"USB-C charger, 30 W" not in response.data  # a product name from the sample data
+
+
+def test_products_need_an_account(client):
+    response = client.get("/shop")
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+    assert client.get("/api/products").status_code == 401
+
+
+def test_signed_in_customer_sees_products_and_units(client):
+    response = sign_up(client, new_email())
+    assert response.headers["Location"] == "/shop"
+    page = client.get("/shop?q=usb")
+    assert page.status_code == 200
+    assert b"in stock" in page.data
+    assert client.get("/api/products").status_code == 200
+
+
+def test_sign_in_returns_to_the_page_asked_for(client):
+    email = new_email()
+    sign_up(client, email)
+    client.post("/logout")
+    response = client.post("/login", data={"email": email, "password": "customer-pass-1",
+                                           "next": "/shop?q=paper"})
+    assert response.headers["Location"] == "/shop?q=paper"

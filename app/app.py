@@ -1,10 +1,13 @@
 """StockWise Solutions web app (Flask).
 
 One app serves both views and a small API:
-  /                customer view: search products and see how many are in stock
-  /signup          customers create an account
-  /login, /logout  sign in and out (customers and the owner use the same page)
+  /                public landing page: what the store offers; sign up or sign in
+  /signup          customers create an account (always a customer account)
+  /login           customer sign-in
+  /shop            signed-in customers search products and see units in stock
+  /owner/login     owner sign-in (not linked from the public pages)
   /owner           owner dashboard: stock levels, low-stock list, sales and restocks
+  /logout          sign out
   /api/...         JSON endpoints
 
 Sign-in: accounts are stored in the database with a salted password hash. After
@@ -104,12 +107,23 @@ def shared_values():
     }
 
 
-def owner_required(view):
-    """Pages: not signed in -> sign-in page; signed in without the owner role -> 403."""
+def login_required(view):
+    """Pages for registered users: not signed in -> customer sign-in page."""
     @wraps(view)
     def wrapper(*args, **kwargs):
         if current_user() is None:
-            return redirect(url_for("login", next=request.path))
+            flash("Please sign in or create an account to see our products.", "ok")
+            return redirect(url_for("login", next=request.full_path.rstrip("?")))
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def owner_required(view):
+    """Owner pages: not signed in -> owner sign-in page; signed in without the owner role -> 403."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if current_user() is None:
+            return redirect(url_for("owner_login", next=request.path))
         if not is_owner():
             abort(403)
         return view(*args, **kwargs)
@@ -133,16 +147,24 @@ def forbidden(_error):
     return render_template("forbidden.html"), 403
 
 
-# ---------- Customer view ----------
+# ---------- Public landing page ----------
 
 @app.get("/")
+def landing():
+    return render_template("landing.html")
+
+
+# ---------- Shop (registered users only) ----------
+
+@app.get("/shop")
+@login_required
 def customer():
     query = request.args.get("q", "")
     products = [inventory.public_view(p) for p in inventory.search(query)]
     return render_template("customer.html", products=products, query=query)
 
 
-# ---------- Sign up, sign in, sign out ----------
+# ---------- Customer sign up, sign in, sign out ----------
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -165,13 +187,16 @@ def login():
     next_page = request.values.get("next", "")
     if request.method == "POST":
         user = accounts.authenticate(request.form.get("email"), request.form.get("password"))
+        if user is not None and user["role"] == OWNER:
+            # The owner has a separate sign-in page; do not sign in here.
+            flash("This is the customer sign-in. The store owner signs in on the owner page.", "error")
+            return redirect(url_for("owner_login"))
         if user is None:
             flash("The email or password is not correct.", "error")
             return render_template("login.html", email=request.form.get("email", ""),
                                    next_page=next_page), 401
         sign_in(user)
-        default = url_for("owner") if user["role"] == OWNER else url_for("customer")
-        return redirect(safe_next(next_page, default))
+        return redirect(safe_next(next_page, url_for("customer")))
     return render_template("login.html", email="", next_page=next_page)
 
 
@@ -179,13 +204,24 @@ def login():
 def logout():
     session.clear()
     flash("You have signed out.", "ok")
-    return redirect(url_for("customer"))
+    return redirect(url_for("landing"))
 
 
-@app.get("/owner/login")
+# ---------- Owner sign-in (separate page, owner accounts only) ----------
+
+@app.route("/owner/login", methods=["GET", "POST"])
 def owner_login():
-    # Old link: the owner now signs in on the shared sign-in page.
-    return redirect(url_for("login", next="/owner"))
+    next_page = request.values.get("next", "")
+    if request.method == "POST":
+        user = accounts.authenticate(request.form.get("email"), request.form.get("password"))
+        if user is None or user["role"] != OWNER:
+            # Same message for a wrong password and for a customer account.
+            flash("The email or password is not correct.", "error")
+            return render_template("owner_signin.html", email=request.form.get("email", ""),
+                                   next_page=next_page), 401
+        sign_in(user)
+        return redirect(safe_next(next_page, url_for("owner")))
+    return render_template("owner_signin.html", email="", next_page=next_page)
 
 
 # ---------- Owner dashboard (owner role required) ----------
@@ -247,7 +283,9 @@ def health():
 
 @app.get("/api/products")
 def api_products():
-    # Public endpoint: what customers see (name, price, units in stock, status).
+    # Registered users only: what customers see (name, price, units in stock, status).
+    if current_user() is None:
+        return jsonify(error="Sign in first."), 401
     return jsonify([inventory.public_view(p) for p in inventory.search(request.args.get("q"))])
 
 

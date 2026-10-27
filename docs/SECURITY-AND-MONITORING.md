@@ -4,9 +4,10 @@ v8 replaces Entra External ID with a **simple email-and-password sign-in built i
 
 | Feature | How it works |
 |---|---|
-| Customer sign-up and sign-in | `/signup` and `/login`. Accounts are saved in a new `users` collection in our Cosmos DB, with the password stored only as a salted hash. |
-| Owner | One account, created automatically from two GitHub secrets: `OWNER_EMAIL` and `OWNER_PASSWORD`. It has the **owner** role. |
-| Protection | After sign-in, the browser holds a signed session cookie (the token). Owner pages and the owner API check it for the owner role. Not signed in: pages go to `/login` and the API returns 401. A customer gets 403. |
+| Landing page | `/` is public. It explains the store and has **Create a free account** and **Sign in** buttons. It shows no products. |
+| Customers | `/signup` always creates a **customer** account; nobody can sign up as the owner. After signing in, customers see products and units in stock on `/shop`. Accounts are saved in a new `users` collection in our Cosmos DB, with the password stored only as a salted hash. |
+| Owner | One account, created automatically from two GitHub secrets: `OWNER_EMAIL` and `OWNER_PASSWORD`. It signs in on a **separate page**, `/owner/login`, which is not linked from the public pages (Michael bookmarks it). Customer accounts cannot sign in there, and the owner cannot sign in on the customer page. |
+| Protection | After sign-in, the browser holds a signed session cookie (the token). `/shop` and `/api/products` need any signed-in account. Owner pages and the owner API need the owner role. Not signed in: pages go to the sign-in page and the API returns 401. A customer opening the owner area gets 403. |
 | Key Vault | The database connection string, owner password and session key are Key Vault references. Only the web app's identity can read them. |
 | Monitoring | Application Insights with live metrics, and an email alert when there are more than 5 server errors in 5 minutes. |
 
@@ -84,7 +85,9 @@ git status
 ```
 
 - `git rm` removes the old access-code page. If it says the file does not exist, that is fine.
-- `git status` should show `accounts.py`, `login.html`, `signup.html`, `forbidden.html` and `test_accounts.py` as new, and `app.py`, `main.bicep`, `main.bicepparam` and `deploy.yml` as changed.
+- `git status` should show `accounts.py`, `landing.html`, `login.html`, `signup.html`, `owner_signin.html`, `forbidden.html` and `test_accounts.py` as new, and `app.py`, `main.bicep`, `main.bicepparam` and `deploy.yml` as changed.
+
+> **Already committed the first v8 on this branch?** Stay on `feature/simple-sign-in`, run the two `cp` lines again with the new zip, then `git add .` and `git commit -m "Landing page, products for registered users, separate owner sign-in"`. You do not need `git rm` again.
 
 Run the tests:
 
@@ -94,7 +97,7 @@ pip install -r app/requirements.txt pytest mongomock
 python3 -m pytest
 ```
 
-You should see **47 passed**. Then:
+You should see **51 passed**. Then:
 
 ```bash
 git add .
@@ -104,7 +107,7 @@ git push -u origin feature/simple-sign-in
 
 On GitHub: **Compare & pull request → Create pull request** → wait for the green test check → Clement reviews and clicks **Merge pull request**. Then watch the **Actions** tab until the run is green, about 5 to 8 minutes.
 
-**Optional: try it on your laptop first.** Run `cd app && python3 app.py`, then open http://localhost:5001. The local owner is `owner@stockwise.test` with password `owner-pass-123`; this account exists only on your laptop.
+**Optional: try it on your laptop first.** Run `cd app && python3 app.py`, then open http://localhost:5001. The local owner signs in at http://localhost:5001/owner/login with `owner@stockwise.test` and password `owner-pass-123`. This account exists only on your laptop.
 
 ---
 
@@ -114,11 +117,12 @@ Use the live URL: https://stockwise-ebapp-d5amh9exhbe5ebh0.canadacentral-01.azur
 
 **Sign-in**
 
-1. Click **Sign up** and create a customer account. The top bar now says **Signed in as …**.
-2. Open `/owner`. You see **"This area is for the store owner"** (403).
-3. Click **Sign out**. Then click **Sign in** and use `OWNER_EMAIL` and `OWNER_PASSWORD`. You go straight to the **Owner dashboard**. Record a sale.
-4. Open `/api/me` to see your account as JSON, with no password.
-5. In Terminal, check that the owner API refuses a request with no token:
+1. Open the live URL. You see the **landing page**, with no products. Open `/shop`: you are sent to **Sign in**.
+2. Click **Create a free account** and sign up. You land on the shop with products and units in stock, and the top bar says **Signed in as …**.
+3. Open `/owner`. You see **"This area is for the store owner"** (403).
+4. Click **Sign out**. Open `/owner/login` and sign in with `OWNER_EMAIL` and `OWNER_PASSWORD`. You go to the **Owner dashboard**. Record a sale. Bookmark this page as Michael's link.
+5. Open `/api/me` to see your account as JSON, with no password.
+6. In Terminal, check that the owner API refuses a request with no token:
 
 ```bash
 curl -i https://stockwise-ebapp-d5amh9exhbe5ebh0.canadacentral-01.azurewebsites.net/api/owner/low-stock
@@ -128,17 +132,17 @@ You should see `HTTP/1.1 401` and `"Sign in first."`.
 
 **Database**
 
-6. Cosmos DB → **Data Explorer** → `stockwise` → `users` → **Documents**. You see the owner and your customer account, each with a `password_hash` that starts with `scrypt:` and no password.
+7. Cosmos DB → **Data Explorer** → `stockwise` → `users` → **Documents**. You see the owner and your customer account, each with a `password_hash` that starts with `scrypt:` and no password.
 
 **Key Vault**
 
-7. **stockwise-ebapp → Environment variables**: `MONGODB_URI`, `OWNER_PASSWORD` and `FLASK_SECRET_KEY` show **Key vault Reference** with a green tick. `OWNER_EMAIL` is a normal setting.
-8. **Key vault (sw-kv-…) → Access policies**: only `stockwise-ebapp`, with Get and List on secrets. On the **Secrets** page, Azure says you are not authorized to view them. That is correct, because only the app can read them.
+8. **stockwise-ebapp → Environment variables**: `MONGODB_URI`, `OWNER_PASSWORD` and `FLASK_SECRET_KEY` show **Key vault Reference** with a green tick. `OWNER_EMAIL` is a normal setting.
+9. **Key vault (sw-kv-…) → Access policies**: only `stockwise-ebapp`, with Get and List on secrets. On the **Secrets** page, Azure says you are not authorized to view them. That is correct, because only the app can read them.
 
 **Monitoring**
 
-9. **stockwise-insights → Live metrics**: click around the site and watch the requests appear.
-10. Sign in as the owner, open `/owner/test-error`, and refresh **10 times**. Within about 10 minutes you get the **"Fired: … stockwise-5xx-errors"** email. A **Resolved** email follows later.
+10. **stockwise-insights → Live metrics**: click around the site and watch the requests appear.
+11. Sign in as the owner, open `/owner/test-error`, and refresh **10 times**. Within about 10 minutes you get the **"Fired: … stockwise-5xx-errors"** email. A **Resolved** email follows later.
 
 ---
 
@@ -146,7 +150,7 @@ You should see `HTTP/1.1 401` and `"Sign in first."`.
 
 Every screenshot must show the URL bar or the resource name. Hide secret values.
 
-1. The sign-up page, then the customer view showing **Signed in as …**
+1. The landing page; then the sign-up page; then the shop showing **Signed in as …**
 2. A customer opening `/owner`: the 403 page
 3. The owner dashboard after a sale, showing the owner's name in the top bar
 4. `/api/products` and `/api/me` as JSON
@@ -165,8 +169,9 @@ Every screenshot must show the URL bar or the resource name. Hide secret values.
 |---|---|
 | `MissingSubscriptionRegistration` in the Actions log | Do step 1a again until every line says `Registered`, then re-run the workflow. |
 | `VaultAlreadyExists` or `name is already in use` | Add `param keyVaultName = 'sw-kv-stockwise-ha2'` to `infra/main.bicepparam`, then push. |
+| The owner is told to use the owner page | The owner signs in only at `/owner/login`, not on the customer sign-in page. |
 | The owner cannot sign in on Azure | Check that `OWNER_EMAIL` and `OWNER_PASSWORD` are set in GitHub exactly, then **Actions → Run workflow**. The owner account is created or updated each time the app starts. |
-| "An account with this email already exists" when the owner signs up | The owner does not sign up. Use **Sign in** with the owner email and password. |
+| "An account with this email already exists" when the owner signs up | The owner does not sign up. Use `/owner/login` with the owner email and password. |
 | Signed out after every restart | `FLASK_SECRET_KEY` is missing in GitHub. Add it and re-run the workflow. |
 | Red cross on a Key vault Reference | Wait 2 minutes and restart the web app. Check that **Access policies** lists `stockwise-ebapp`. |
 | **Application Error** page | stockwise-ebapp → **Log stream**. Send us the last 20 lines. |

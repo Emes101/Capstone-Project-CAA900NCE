@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Owner sign-in{% endblock %}
+{% block content %}
+<section class="login">
+  <h1>Owner sign-in</h1>
+  <p>For the store owner only. Customer accounts cannot open the owner dashboard.</p>
+  <form method="post" action="{{ url_for('owner_login') }}" class="login-form">
+    <input type="hidden" name="next" value="{{ next_page }}">
+    <label for="email">Owner email</label>
+    <input id="email" name="email" type="email" value="{{ email }}" autocomplete="username" required autofocus>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit" class="secondary">Open dashboard</button>
+  </form>
+</section>
+{% endblock %}

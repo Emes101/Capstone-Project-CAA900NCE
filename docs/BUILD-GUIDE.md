@@ -165,7 +165,7 @@ bash scripts/deploy.sh
 
 The script:
 
-1. creates the resource group `caa900-stockwise-rg` in Canada Central (skipped if it exists);
+1. creates the resource group `caa900_stockwiseRG` in Canada Central (skipped if it exists);
 2. creates the App Service plan and web app from `infra/main.bicep`;
 3. packages the `app` folder into `app.zip`;
 4. uploads it, and Azure installs the packages from `requirements.txt`.
@@ -175,7 +175,7 @@ At the end it prints our two public links. The first start can take two to three
 **Step 3. Add the secret key and the owner access code (once).** Never commit these values.
 
 ```bash
-az webapp config appsettings set --resource-group caa900-stockwise-rg \
+az webapp config appsettings set --resource-group caa900_stockwiseRG \
   --name <web app name printed by the script> \
   --settings FLASK_SECRET_KEY=<a long random value> OWNER_ACCESS_CODE=<the owner code>
 ```
@@ -204,7 +204,7 @@ Take these screenshots, each showing the URL bar or the resource name:
 - To remove everything in the resource group (it can be recreated with the script):
 
 ```bash
-az group delete --name caa900-stockwise-rg --yes
+az group delete --name caa900_stockwiseRG --yes
 ```
 
 - Take a screenshot of the remaining credit at **microsoftazuresponsorships.com/balance** each week for the cost log.
@@ -215,7 +215,7 @@ az group delete --name caa900-stockwise-rg --yes
 
 | Problem | What to do |
 |---|---|
-| The site shows a default Azure page or "Application Error" | Wait two minutes and refresh. Then check the logs: `az webapp log tail --resource-group caa900-stockwise-rg --name <app name>` |
+| The site shows a default Azure page or "Application Error" | Wait two minutes and refresh. Then check the logs: `az webapp log tail --resource-group caa900_stockwiseRG --name <app name>` |
 | `RequestDisallowedByAzure` or a region error | Azure for Students may limit regions. Change `canadacentral` in the deploy script to an allowed region (for example `canadaeast` or `eastus`) and run it again. |
 | The free (F1) plan is refused | Change `skuName` in `infra/main.bicep` to `B1`, deploy, and delete the group when not in use. |
 | `az` or `python` is not recognised | Close and reopen the terminal after installing, or reinstall with "Add to PATH" ticked. |

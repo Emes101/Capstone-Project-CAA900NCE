@@ -13,8 +13,19 @@
       {# Customers never see a link to the owner area. The owner opens /owner directly (bookmark it). #}
       {% if request.endpoint and request.endpoint.startswith('owner') %}
       <nav>
-        <span class="area-label">Owner area</span>
+        <span class="area-label">Owner area{% if user %} · {{ user.name }}{% endif %}</span>
         <a href="{{ url_for('customer') }}" target="_blank" rel="noopener">View shop as a customer</a>
+      </nav>
+      {% else %}
+      {# Customers never see a link to the owner area. The owner signs in and is taken there. #}
+      <nav class="account-nav">
+        {% if user %}
+        <span class="area-label">Signed in as {{ user.name }}</span>
+        <form method="post" action="{{ url_for('logout') }}" class="inline-nav"><button type="submit" class="link-button">Sign out</button></form>
+        {% else %}
+        <a href="{{ url_for('login') }}">Sign in</a>
+        <a href="{{ url_for('signup') }}">Sign up</a>
+        {% endif %}
       </nav>
       {% endif %}
     </div>

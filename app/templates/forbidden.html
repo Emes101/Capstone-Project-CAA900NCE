@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}No access{% endblock %}
+{% block content %}
+<section class="login">
+  <h1>This area is for the store owner</h1>
+  <p>You are signed in{% if user %} as <strong>{{ user.name }}</strong>{% endif %}, but your account does not have the owner role.</p>
+  <p><a href="{{ url_for('customer') }}">Go back to the shop</a></p>
+</section>
+{% endblock %}

@@ -4,7 +4,7 @@
 # Usage: bash scripts/deploy.sh
 set -euo pipefail
 
-RESOURCE_GROUP="caa900-stockwise-rg"
+RESOURCE_GROUP="caa900_stockwiseRG"
 LOCATION="canadacentral"
 
 echo "1/4 Creating the resource group (skipped if it exists)..."

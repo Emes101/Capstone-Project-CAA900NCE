@@ -4,6 +4,8 @@
 #   the infrastructure (Bicep) and the app to Azure App Service.
 # Signs in to Azure with OIDC (a federated credential on a managed identity),
 # so no Azure password or key is stored in GitHub. See docs/CI-CD.md.
+# Secret values go from GitHub secrets into Key Vault through Bicep; the app
+# reads them with Key Vault references. See docs/SECURITY-AND-MONITORING.md (v8).
 
 name: Test and deploy
 
@@ -19,7 +21,7 @@ permissions:
   contents: read
 
 env:
-  RESOURCE_GROUP: caa900-stockwise-rg
+  RESOURCE_GROUP: caa900_stockwiseRG
 
 jobs:
   test:
@@ -53,6 +55,12 @@ jobs:
 
       - name: Deploy infrastructure (Bicep)
         id: infra
+        env:
+          # Read by infra/main.bicepparam. Bicep stores them in Key Vault.
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          OWNER_PASSWORD: ${{ secrets.OWNER_PASSWORD }}
+          FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
         run: |
           APP=$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
@@ -60,16 +68,6 @@ jobs:
             --parameters infra/main.bicepparam \
             --query properties.outputs.webAppName.value --output tsv)
           echo "app=$APP" >> "$GITHUB_OUTPUT"
-
-      - name: Set app settings from GitHub secrets
-        run: |
-          az webapp config appsettings set \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "${{ steps.infra.outputs.app }}" \
-            --settings FLASK_SECRET_KEY="${{ secrets.FLASK_SECRET_KEY }}" \
-                       OWNER_ACCESS_CODE="${{ secrets.OWNER_ACCESS_CODE }}" \
-                       SCM_DO_BUILD_DURING_DEPLOYMENT=true \
-            --output none
 
       - name: Package the app
         run: cd app && zip -qr ../app.zip . -x '__pycache__/*'

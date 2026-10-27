@@ -91,3 +91,9 @@ form.inline button { padding: 6px 12px; }
 
 /* Owner area label in the top bar */
 .area-label { color: #8FB8E8; font-weight: 600; margin-right: 6px; }
+
+/* Sign-in links in the top bar */
+.inline-nav { display: inline; margin: 0; }
+.link-button { background: none; border: none; color: #DCE6F5; padding: 0; margin-left: 18px; font: inherit; cursor: pointer; }
+.link-button:hover { color: #fff; text-decoration: underline; }
+.login-note { font-size: 0.95rem; }

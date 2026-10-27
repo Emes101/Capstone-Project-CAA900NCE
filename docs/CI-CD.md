@@ -18,13 +18,13 @@ Portal → **Subscriptions** → *Azure for Students* → **Resource providers**
 
 ### 2. Create the resource group (skip if it exists)
 Portal → **Resource groups** → **Create**
-- Name: `caa900-stockwise-rg`
+- Name: `caa900_stockwiseRG`
 - Region: **Canada Central**
 - Tags: `project = caa900`, `team = stockwise`, `env = dev`
 
 ### 3. Create the managed identity
 Portal → search **Managed Identities** → **Create**
-- Resource group: `caa900-stockwise-rg`
+- Resource group: `caa900_stockwiseRG`
 - Region: Canada Central
 - Name: `caa900-stockwise-github`
 - Tags: same as above
@@ -38,7 +38,7 @@ Open the identity → **Settings → Federated credentials → Add credential**
 - Name: `github-main`
 
 ### 5. Give it access to the resource group only
-Portal → **Resource groups** → `caa900-stockwise-rg` → **Access control (IAM)** → **Add → Add role assignment**
+Portal → **Resource groups** → `caa900_stockwiseRG` → **Access control (IAM)** → **Add → Add role assignment**
 - Role: **Contributor** → Next
 - Assign access to: **Managed identity** → **Select members** → `caa900-stockwise-github`
 - **Review + assign**
@@ -69,7 +69,7 @@ Merge the pull request that adds the workflow, or open **Actions → Test and de
 |---|---|
 | `AADSTS70021` / no matching federated identity | Step 4 must say organization `Emes101`, repository `Capstone-Project-CAA900NCE`, branch `main`, exactly |
 | `AuthorizationFailed` | Step 5: the identity needs **Contributor** on the resource group |
-| `ResourceGroupNotFound` | Step 2: create `caa900-stockwise-rg` first |
+| `ResourceGroupNotFound` | Step 2: create `caa900_stockwiseRG` first |
 | `MissingSubscriptionRegistration` | Step 1: register `Microsoft.Web` |
 | Region or quota error | Recreate the resource group in another region (e.g. Canada East) |
 

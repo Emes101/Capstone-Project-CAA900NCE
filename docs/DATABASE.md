@@ -23,7 +23,7 @@
 - Next step (Submission 4): move the connection string into Key Vault and restrict the database firewall to the app's outbound IP addresses.
 
 ## One-time setup
-1. Portal → **Azure Cosmos DB** → Create → **Azure Cosmos DB for MongoDB** → **Request unit (RU)**: workload type *Learning*, resource group `caa900-stockwise-rg`, an allowed region, Availability Zones *Disable*, Free Tier Discount *Apply*.
+1. Portal → **Azure Cosmos DB** → Create → **Azure Cosmos DB for MongoDB** → **Request unit (RU)**: workload type *Learning*, resource group `caa900_stockwiseRG`, an allowed region, Availability Zones *Disable*, Free Tier Discount *Apply*.
 2. **Data Explorer → New Collection**: database `stockwise`, collection `products`, *Unsharded*, 400 RU/s manual (skip throughput on serverless).
 3. Put the account name, web app name, plan name and region in `infra/main.bicepparam`.
 

@@ -1,0 +1,3 @@
+# Only for the YOLO shelf-scan prototype, run on a laptop. Not installed on Azure.
+ultralytics==8.*
+pymongo==4.*

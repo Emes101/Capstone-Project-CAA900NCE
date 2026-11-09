@@ -97,3 +97,27 @@ form.inline button { padding: 6px 12px; }
 .link-button { background: none; border: none; color: #DCE6F5; padding: 0; margin-left: 18px; font: inherit; cursor: pointer; }
 .link-button:hover { color: #fff; text-decoration: underline; }
 .login-note { font-size: 0.95rem; }
+
+/* Landing page */
+.landing-hero { text-align: center; padding: 40px 0 16px; }
+.landing-hero h1 { font-size: 2.4rem; margin-bottom: 12px; }
+.eyebrow { color: var(--blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin: 0; }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 640px; margin: 0 auto; }
+.cta { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 24px 0 8px; }
+.btn { display: inline-block; background: var(--blue); color: #fff; text-decoration: none; padding: 11px 20px; border-radius: 8px; font-weight: 600; }
+.btn-outline { background: transparent; color: var(--navy); border: 2px solid var(--navy); }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 32px 0; }
+.feature { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.feature h2 { margin-top: 0; font-size: 1.1rem; }
+.feature p { color: var(--muted); margin-bottom: 0; }
+.how { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 24px 16px; margin-bottom: 32px; }
+.how li { margin: 6px 0; }
+.signed-in { margin-left: 18px; }
+
+/* Reservations */
+.muted { color: var(--muted); }
+.reserve-form { display: flex; align-items: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.reserve-form label { font-size: 0.85rem; color: var(--muted); }
+.reserve-form input { width: 60px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.reserve-form button { padding: 7px 12px; font-size: 0.85rem; }
+td.actions form.inline { display: inline-flex; margin-right: 6px; }

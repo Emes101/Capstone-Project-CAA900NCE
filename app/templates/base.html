@@ -7,20 +7,24 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  {# Owner styling only for the owner, or for the owner sign-in page before anyone signs in. #}
+  {% set owner_area = request.endpoint and request.endpoint.startswith('owner') and (is_owner or not user) %}
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="{{ url_for('owner') if request.endpoint and request.endpoint.startswith('owner') else url_for('customer') }}">StockWise <span>{{ 'Owner' if request.endpoint and request.endpoint.startswith('owner') else 'Solutions' }}</span></a>
+      <a class="brand" href="{{ url_for('owner') if owner_area else url_for('landing') }}">StockWise <span>{{ 'Owner' if owner_area else 'Solutions' }}</span></a>
       {# Customers never see a link to the owner area. The owner opens /owner directly (bookmark it). #}
-      {% if request.endpoint and request.endpoint.startswith('owner') %}
+      {% if owner_area %}
       <nav>
         <span class="area-label">Owner area{% if user %} · {{ user.name }}{% endif %}</span>
         <a href="{{ url_for('customer') }}" target="_blank" rel="noopener">View shop as a customer</a>
       </nav>
       {% else %}
-      {# Customers never see a link to the owner area. The owner signs in and is taken there. #}
+      {# Customers never see a link to the owner area. The owner bookmarks /owner/login. #}
       <nav class="account-nav">
         {% if user %}
-        <span class="area-label">Signed in as {{ user.name }}</span>
+        <a href="{{ url_for('customer') }}">Shop</a>
+        {% if not is_owner %}<a href="{{ url_for('my_reservations') }}">My reservations</a>{% endif %}
+        <span class="area-label signed-in">Signed in as {{ user.name }}</span>
         <form method="post" action="{{ url_for('logout') }}" class="inline-nav"><button type="submit" class="link-button">Sign out</button></form>
         {% else %}
         <a href="{{ url_for('login') }}">Sign in</a>

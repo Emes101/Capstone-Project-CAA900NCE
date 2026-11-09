@@ -3,7 +3,7 @@
 {% block content %}
 <section class="login">
   <h1>Create an account</h1>
-  <p>Sign up to reserve items for pickup (coming soon). You can check stock without an account.</p>
+  <p>A free customer account lets you see every product and how many units are in stock.</p>
   <form method="post" action="{{ url_for('signup') }}" class="login-form">
     <label for="name">Name</label>
     <input id="name" name="name" type="text" value="{{ name }}" maxlength="80" autocomplete="name" required autofocus>

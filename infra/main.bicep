@@ -1,4 +1,4 @@
-// StockWise Solutions infrastructure (v8).
+// StockWise Solutions infrastructure (v9).
 // - App Service plan (Linux) and web app that run our Flask app.
 // - Key Vault that holds every secret. The web app reads them with its own
 //   managed identity through Key Vault references, so no secret value is
@@ -48,6 +48,16 @@ param flaskSecretKey string = ''
 
 @description('Email address that receives the 5xx error alert. Empty = no alert.')
 param alertEmail string = ''
+
+@description('Connection string of our Azure Communication Services resource, for the low-stock email. Empty = no email.')
+@secure()
+param acsConnectionString string = ''
+
+@description('MailFrom address of the Communication Services email domain, e.g. DoNotReply@xxxx.azurecomm.net.')
+param acsSenderAddress string = ''
+
+@description('Who receives low-stock emails. Empty = the owner email.')
+param lowStockEmailTo string = ''
 
 var tags = {
   project: 'caa900'
@@ -183,6 +193,14 @@ resource flaskKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!em
   }
 }
 
+resource acsSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(acsConnectionString)) {
+  parent: vault
+  name: 'acs-connection-string'
+  properties: {
+    value: acsConnectionString
+  }
+}
+
 // ---------- App settings ----------
 // This list replaces ALL app settings on every deployment, so every setting
 // the app needs must be here.
@@ -207,12 +225,19 @@ var flaskKeySettings = !empty(flaskSecretKey) ? {
   FLASK_SECRET_KEY: '@Microsoft.KeyVault(SecretUri=${flaskKeySecret!.properties.secretUri})'
 } : {}
 
+// Low-stock email (optional): only when the Communication Services details are given.
+var emailSettings = !empty(acsConnectionString) && !empty(acsSenderAddress) ? {
+  ACS_CONNECTION_STRING: '@Microsoft.KeyVault(SecretUri=${acsSecret!.properties.secretUri})'
+  ACS_SENDER_ADDRESS: acsSenderAddress
+  LOW_STOCK_EMAIL_TO: empty(lowStockEmailTo) ? ownerEmail : lowStockEmailTo
+} : {}
+
 resource appSettings 'Microsoft.Web/sites/config@2023-12-01' = {
   parent: webApp
   name: 'appsettings'
   // Each Key Vault reference above makes this wait for the vault and its
   // access policy, so the app can read the secrets as soon as it restarts.
-  properties: union(baseSettings, databaseSettings, ownerSettings, flaskKeySettings)
+  properties: union(baseSettings, databaseSettings, ownerSettings, flaskKeySettings, emailSettings)
 }
 
 // ---------- Alert: email when the site returns server errors ----------

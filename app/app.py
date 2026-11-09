@@ -1,20 +1,26 @@
 """StockWise Solutions web app (Flask).
 
 One app serves both views and a small API:
-  /                customer view: search products and see how many are in stock
-  /signup          customers create an account
-  /login, /logout  sign in and out (customers and the owner use the same page)
-  /owner           owner dashboard: stock levels, low-stock list, sales and restocks
+  /                public landing page: what the store offers; sign up or sign in
+  /signup          customers create an account (always a customer account)
+  /login           customer sign-in
+  /shop            signed-in customers search products, see units in stock and reserve
+  /reservations    a customer's reservations (cancel while waiting for pickup)
+  /owner/login     owner sign-in (not linked from the public pages)
+  /owner           owner dashboard: stock, low-stock list, reservations, sales, restocks
+  /logout          sign out
   /api/...         JSON endpoints
 
 Sign-in: accounts are stored in the database with a salted password hash. After
 sign-in, Flask gives the browser a signed session cookie (the token). Every owner
 page and owner API checks that token for the "owner" role.
 
-Stock and accounts are saved in Azure Cosmos DB for MongoDB when MONGODB_URI is
-set (on Azure), and kept in memory otherwise (on a laptop).
+Stock, reservations and accounts are saved in Azure Cosmos DB for MongoDB when
+MONGODB_URI is set (on Azure), and kept in memory otherwise (on a laptop).
+When a sale or reservation makes an item low, the owner gets an email (notify.py).
 """
 
+import logging
 import os
 from datetime import timedelta
 from functools import wraps
@@ -29,7 +35,11 @@ from flask import (Flask, abort, flash, jsonify, redirect, render_template,  # n
                    request, session, url_for)
 
 from accounts import OWNER, AccountError, MemoryAccounts, MongoAccounts  # noqa: E402
-from inventory import STATUS_LABELS, Inventory, StockError  # noqa: E402
+from inventory import (CANCELLED, MAX_RESERVE_QUANTITY, PICKED_UP,  # noqa: E402
+                       RESERVED, STATUS_LABELS, Inventory, StockError)
+from notify import LowStockNotifier  # noqa: E402
+
+logging.basicConfig(level=logging.INFO)
 
 ON_AZURE = bool(os.environ.get("WEBSITE_SITE_NAME"))  # set by App Service
 
@@ -55,6 +65,7 @@ if MONGODB_URI:
     _db = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000)[os.environ.get("MONGODB_DB", "stockwise")]
     inventory = MongoInventory(_db["products"])
     inventory.seed_if_empty()
+    inventory.ensure_indexes()
     accounts = MongoAccounts(_db["users"])
 else:
     inventory = Inventory.from_file()
@@ -67,6 +78,15 @@ if MONGODB_URI or ON_AZURE:
 else:
     accounts.ensure_owner(os.environ.get("OWNER_EMAIL", "owner@stockwise.test"),
                           os.environ.get("OWNER_PASSWORD", "owner-pass-123"))
+
+
+# Low-stock email (only sends when the ACS_* settings exist; see notify.py).
+notifier = LowStockNotifier.from_environment()
+
+
+def stock_went_down(product, quantity):
+    """Tell the notifier about a sale or reservation that lowered the stock."""
+    notifier.stock_changed(product, product["stock"] + int(quantity))
 
 
 # ---------- Who is signed in ----------
@@ -104,12 +124,23 @@ def shared_values():
     }
 
 
-def owner_required(view):
-    """Pages: not signed in -> sign-in page; signed in without the owner role -> 403."""
+def login_required(view):
+    """Pages for registered users: not signed in -> customer sign-in page."""
     @wraps(view)
     def wrapper(*args, **kwargs):
         if current_user() is None:
-            return redirect(url_for("login", next=request.path))
+            flash("Please sign in or create an account to see our products.", "ok")
+            return redirect(url_for("login", next=request.full_path.rstrip("?")))
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def owner_required(view):
+    """Owner pages: not signed in -> owner sign-in page; signed in without the owner role -> 403."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if current_user() is None:
+            return redirect(url_for("owner_login", next=request.path))
         if not is_owner():
             abort(403)
         return view(*args, **kwargs)
@@ -133,16 +164,70 @@ def forbidden(_error):
     return render_template("forbidden.html"), 403
 
 
-# ---------- Customer view ----------
+# ---------- Public landing page ----------
 
 @app.get("/")
+def landing():
+    return render_template("landing.html")
+
+
+# ---------- Shop (registered users only) ----------
+
+@app.get("/shop")
+@login_required
 def customer():
     query = request.args.get("q", "")
     products = [inventory.public_view(p) for p in inventory.search(query)]
-    return render_template("customer.html", products=products, query=query)
+    return render_template("customer.html", products=products, query=query,
+                           max_reserve=MAX_RESERVE_QUANTITY)
 
 
-# ---------- Sign up, sign in, sign out ----------
+# ---------- Reservations (customers) ----------
+
+def make_reservation(sku, quantity):
+    """Shared by the page and the API. Returns the reservation view."""
+    user = current_user()
+    product, reservation = inventory.reserve(sku, quantity, user["email"], user["name"])
+    stock_went_down(product, reservation["quantity"])
+    return reservation
+
+
+@app.post("/shop/reserve")
+@login_required
+def reserve():
+    if is_owner():
+        flash("The owner account cannot reserve items. Record a sale instead.", "error")
+        return redirect(url_for("customer"))
+    try:
+        reservation = make_reservation(request.form.get("sku"), request.form.get("quantity", 1))
+        flash(f"Reserved {reservation['quantity']} × {reservation['product_name']}. "
+              "We will hold it for you at the store.", "ok")
+        return redirect(url_for("my_reservations"))
+    except StockError as error:
+        flash(str(error), "error")
+        return redirect(url_for("customer"))
+
+
+@app.get("/reservations")
+@login_required
+def my_reservations():
+    return render_template("reservations.html",
+                           reservations=inventory.reservations(customer_email=current_user()["email"]))
+
+
+@app.post("/reservations/<reservation_id>/cancel")
+@login_required
+def cancel_my_reservation(reservation_id):
+    try:
+        inventory.set_reservation_status(reservation_id, CANCELLED,
+                                         customer_email=current_user()["email"])
+        flash("Your reservation is cancelled.", "ok")
+    except StockError as error:
+        flash(str(error), "error")
+    return redirect(url_for("my_reservations"))
+
+
+# ---------- Customer sign up, sign in, sign out ----------
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -165,13 +250,16 @@ def login():
     next_page = request.values.get("next", "")
     if request.method == "POST":
         user = accounts.authenticate(request.form.get("email"), request.form.get("password"))
+        if user is not None and user["role"] == OWNER:
+            # The owner has a separate sign-in page; do not sign in here.
+            flash("This is the customer sign-in. The store owner signs in on the owner page.", "error")
+            return redirect(url_for("owner_login"))
         if user is None:
             flash("The email or password is not correct.", "error")
             return render_template("login.html", email=request.form.get("email", ""),
                                    next_page=next_page), 401
         sign_in(user)
-        default = url_for("owner") if user["role"] == OWNER else url_for("customer")
-        return redirect(safe_next(next_page, default))
+        return redirect(safe_next(next_page, url_for("customer")))
     return render_template("login.html", email="", next_page=next_page)
 
 
@@ -179,13 +267,24 @@ def login():
 def logout():
     session.clear()
     flash("You have signed out.", "ok")
-    return redirect(url_for("customer"))
+    return redirect(url_for("landing"))
 
 
-@app.get("/owner/login")
+# ---------- Owner sign-in (separate page, owner accounts only) ----------
+
+@app.route("/owner/login", methods=["GET", "POST"])
 def owner_login():
-    # Old link: the owner now signs in on the shared sign-in page.
-    return redirect(url_for("login", next="/owner"))
+    next_page = request.values.get("next", "")
+    if request.method == "POST":
+        user = accounts.authenticate(request.form.get("email"), request.form.get("password"))
+        if user is None or user["role"] != OWNER:
+            # Same message for a wrong password and for a customer account.
+            flash("The email or password is not correct.", "error")
+            return render_template("owner_signin.html", email=request.form.get("email", ""),
+                                   next_page=next_page), 401
+        sign_in(user)
+        return redirect(safe_next(next_page, url_for("owner")))
+    return render_template("owner_signin.html", email="", next_page=next_page)
 
 
 # ---------- Owner dashboard (owner role required) ----------
@@ -200,11 +299,15 @@ def owner():
         "low": sum(1 for p in products if Inventory.status(p) == "low"),
         "out": sum(1 for p in products if Inventory.status(p) == "out"),
     }
+    waiting = inventory.reservations(status=RESERVED)
+    summary["reserved"] = len(waiting)
     return render_template(
         "owner.html",
         products=products,
         low_stock=inventory.low_stock(),
         summary=summary,
+        waiting=waiting,
+        email_on=notifier.enabled,
     )
 
 
@@ -213,6 +316,7 @@ def owner():
 def owner_sale():
     try:
         product = inventory.record_sale(request.form["sku"], request.form["quantity"])
+        stock_went_down(product, request.form["quantity"])
         flash(f"Sale recorded. {product['name']}: {product['stock']} left.", "ok")
     except (StockError, KeyError) as error:
         flash(str(error), "error")
@@ -226,6 +330,21 @@ def owner_restock():
         product = inventory.restock(request.form["sku"], request.form["quantity"])
         flash(f"Restock recorded. {product['name']}: {product['stock']} in stock.", "ok")
     except (StockError, KeyError) as error:
+        flash(str(error), "error")
+    return redirect(url_for("owner"))
+
+
+@app.post("/owner/reservations/<reservation_id>/<action>")
+@owner_required
+def owner_reservation(reservation_id, action):
+    new_status = {"pickup": PICKED_UP, "cancel": CANCELLED}.get(action)
+    if new_status is None:
+        abort(404)
+    try:
+        _, reservation = inventory.set_reservation_status(reservation_id, new_status)
+        flash(f"{reservation['product_name']} for {reservation['customer_name']}: "
+              f"{reservation['status_label'].lower()}.", "ok")
+    except StockError as error:
         flash(str(error), "error")
     return redirect(url_for("owner"))
 
@@ -247,7 +366,9 @@ def health():
 
 @app.get("/api/products")
 def api_products():
-    # Public endpoint: what customers see (name, price, units in stock, status).
+    # Registered users only: what customers see (name, price, units in stock, status).
+    if current_user() is None:
+        return jsonify(error="Sign in first."), 401
     return jsonify([inventory.public_view(p) for p in inventory.search(request.args.get("q"))])
 
 
@@ -258,6 +379,31 @@ def api_me():
     if user is None:
         return jsonify(error="Sign in first."), 401
     return jsonify(user)
+
+
+@app.route("/api/reservations", methods=["GET", "POST"])
+def api_reservations():
+    # GET: the signed-in customer's reservations. POST {"sku", "quantity"}: create one.
+    user = current_user()
+    if user is None:
+        return jsonify(error="Sign in first."), 401
+    if request.method == "GET":
+        return jsonify(inventory.reservations(customer_email=user["email"]))
+    if is_owner():
+        return jsonify(error="The owner account cannot reserve items."), 403
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(make_reservation(data.get("sku"), data.get("quantity", 1))), 201
+    except StockError as error:
+        return jsonify(error=str(error)), 409
+
+
+@app.get("/api/owner/reservations")
+@owner_api
+def api_owner_reservations():
+    # Owner-only API: all reservations, or ?status=reserved / picked_up / cancelled.
+    status = request.args.get("status") or None
+    return jsonify(inventory.reservations(status=status))
 
 
 @app.get("/api/owner/low-stock")

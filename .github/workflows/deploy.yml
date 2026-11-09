@@ -61,6 +61,10 @@ jobs:
           OWNER_PASSWORD: ${{ secrets.OWNER_PASSWORD }}
           FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          # Optional low-stock email (leave these secrets out to keep it off).
+          ACS_CONNECTION_STRING: ${{ secrets.ACS_CONNECTION_STRING }}
+          ACS_SENDER_ADDRESS: ${{ secrets.ACS_SENDER_ADDRESS }}
+          LOW_STOCK_EMAIL_TO: ${{ secrets.LOW_STOCK_EMAIL_TO }}
         run: |
           APP=$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \

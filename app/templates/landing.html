@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<section class="landing-hero">
+  <p class="eyebrow">Electronics · Mobile accessories · Office supplies · Computer peripherals</p>
+  <h1>Know it's in stock before you visit</h1>
+  <p class="lead">Michael Chen's store keeps its stock up to date online. Create a free account to see every product, its price and exactly how many units are on the shelf right now.</p>
+  <div class="cta">
+    {% if user %}
+    <a class="btn" href="{{ url_for('customer') }}">Browse products</a>
+    {% else %}
+    <a class="btn" href="{{ url_for('signup') }}">Create a free account</a>
+    <a class="btn btn-outline" href="{{ url_for('login') }}">Sign in</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="features" aria-label="What you can do">
+  <div class="feature">
+    <h2>Live stock levels</h2>
+    <p>Every sale in the store updates the website straight away, so the number you see is the number on the shelf.</p>
+  </div>
+  <div class="feature">
+    <h2>Exact units, not guesses</h2>
+    <p>See "3 units in stock" instead of a vague "available", and spot items that are running low.</p>
+  </div>
+  <div class="feature">
+    <h2>Reserve for pickup</h2>
+    <p>Soon you will be able to reserve an item with a small deposit and collect it in the store.</p>
+  </div>
+</section>
+
+<section class="how">
+  <h2>How it works</h2>
+  <ol>
+    <li>Create an account with your name and email.</li>
+    <li>Search for what you need, for example "charger" or "printer paper".</li>
+    <li>Check the units in stock, then visit the store.</li>
+  </ol>
+</section>
+{% endblock %}

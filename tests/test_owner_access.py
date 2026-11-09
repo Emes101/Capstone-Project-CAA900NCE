@@ -22,13 +22,13 @@ def client():
 
 
 def sign_in(client, email=OWNER_EMAIL, password=OWNER_PASSWORD):
-    return client.post("/login", data={"email": email, "password": password})
+    return client.post("/owner/login", data={"email": email, "password": password})
 
 
-def test_dashboard_needs_sign_in(client):
+def test_dashboard_needs_owner_sign_in(client):
     response = client.get("/owner")
     assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
+    assert "/owner/login" in response.headers["Location"]
 
 
 def test_wrong_password_is_rejected(client):
@@ -53,7 +53,7 @@ def test_owner_can_record_a_sale(client):
 def test_restock_blocked_without_sign_in(client):
     response = client.post("/owner/restock", data={"sku": "EL-1001", "quantity": 5})
     assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
+    assert "/owner/login" in response.headers["Location"]
 
 
 def test_sign_out_locks_dashboard_again(client):
@@ -62,9 +62,24 @@ def test_sign_out_locks_dashboard_again(client):
     assert client.get("/owner").status_code == 302
 
 
-def test_old_owner_login_link_still_works(client):
+def test_owner_sign_in_page_is_separate(client):
     response = client.get("/owner/login")
-    assert "/login" in response.headers["Location"]
+    assert response.status_code == 200
+    assert b"Owner sign-in" in response.data
+
+
+def test_customer_account_cannot_use_owner_sign_in(client):
+    client.post("/signup", data={"name": "Cara", "email": "cara@example.com", "password": "cara-pass-1"})
+    client.post("/logout")
+    response = sign_in(client, "cara@example.com", "cara-pass-1")
+    assert response.status_code == 401
+    assert client.get("/owner").status_code == 302
+
+
+def test_owner_is_not_signed_in_on_customer_page(client):
+    response = client.post("/login", data={"email": OWNER_EMAIL, "password": OWNER_PASSWORD})
+    assert "/owner/login" in response.headers["Location"]
+    assert client.get("/api/me").status_code == 401
 
 
 def test_owner_api_checks_the_token(client):
@@ -75,11 +90,8 @@ def test_owner_api_checks_the_token(client):
     assert isinstance(response.get_json(), list)
 
 
-def test_customers_see_units_in_stock(client):
-    response = client.get("/")
-    assert b"units in stock" in response.data or b"unit in stock" in response.data
-
-
-def test_customer_page_has_no_owner_link(client):
-    response = client.get("/")
-    assert b'href="/owner' not in response.data
+def test_public_pages_have_no_owner_link(client):
+    for page in ("/", "/login", "/signup"):
+        assert b'href="/owner' not in client.get(page).data
+    client.post("/signup", data={"name": "Dan", "email": "dan@example.com", "password": "dan-pass-12"})
+    assert b'href="/owner' not in client.get("/shop").data

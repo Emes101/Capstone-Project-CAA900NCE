@@ -3,7 +3,7 @@
 {% block content %}
 <section class="hero">
   <h1>Is it in stock?</h1>
-  <p>Check what Michael's store has on the shelf before you visit.</p>
+  <p>Check what Michael's store has on the shelf, and reserve items to pick up in the store.</p>
   <form class="search" method="get" action="{{ url_for('customer') }}" role="search">
     <label for="q" class="sr-only">Search products</label>
     <input id="q" name="q" type="search" value="{{ query }}" placeholder="Search, e.g. charger, paper, mouse">
@@ -20,6 +20,14 @@
     <p class="price">${{ '%.2f' % p.price }}</p>
     <p class="units"><span class="units-num">{{ p.stock }}</span> {{ 'unit' if p.stock == 1 else 'units' }} in stock</p>
     <p class="pill pill-{{ 'in' if p.status == 'In stock' else ('low' if p.status == 'Low stock' else 'out') }}">{{ p.status }}</p>
+    {% if p.stock > 0 and not is_owner %}
+    <form method="post" action="{{ url_for('reserve') }}" class="reserve-form">
+      <input type="hidden" name="sku" value="{{ p.sku }}">
+      <label for="qty-{{ p.sku }}">Qty</label>
+      <input id="qty-{{ p.sku }}" name="quantity" type="number" min="1" max="{{ [p.stock, max_reserve]|min }}" value="1">
+      <button type="submit">Reserve for pickup</button>
+    </form>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

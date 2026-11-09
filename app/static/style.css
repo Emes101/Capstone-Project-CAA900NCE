@@ -113,3 +113,11 @@ form.inline button { padding: 6px 12px; }
 .how { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 24px 16px; margin-bottom: 32px; }
 .how li { margin: 6px 0; }
 .signed-in { margin-left: 18px; }
+
+/* Reservations */
+.muted { color: var(--muted); }
+.reserve-form { display: flex; align-items: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.reserve-form label { font-size: 0.85rem; color: var(--muted); }
+.reserve-form input { width: 60px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.reserve-form button { padding: 7px 12px; font-size: 0.85rem; }
+td.actions form.inline { display: inline-flex; margin-right: 6px; }

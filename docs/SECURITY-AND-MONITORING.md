@@ -69,6 +69,25 @@ You can delete `OWNER_ACCESS_CODE` and `AUTH_CLIENT_SECRET` (if it exists). v8 d
 
 ---
 
+## Option: deploy from Azure Cloud Shell (Bash) instead of GitHub Actions
+
+Use this if the GitHub push is not working yet, or for a quick redeploy. `scripts/deploy.sh` does steps 1a and 1b for you, then runs the same Bicep and code upload as the pipeline.
+
+1. Portal → **Cloud Shell** (`>_`) → **Bash**.
+2. Cloud Shell toolbar → **Manage files → Upload** → choose `stockwise-starter-v8.zip`.
+3. Paste one line at a time:
+
+```bash
+az account set --subscription "Azure for Students"
+rm -rf stockwise-starter-v8 && unzip -q stockwise-starter-v8.zip && cd stockwise-starter-v8
+bash scripts/deploy.sh
+```
+
+4. Answer the questions: the owner email, the owner password (hidden as you type, 12 or more characters), Enter for a new session key, and the alert email.
+5. Wait about 10 minutes. The script prints the landing page, shop and owner sign-in links, plus the health check.
+
+> **Keep GitHub in step.** When you later merge to GitHub, the pipeline uses the GitHub secrets. Put the **same** owner email and password in `OWNER_EMAIL` and `OWNER_PASSWORD` (Step 2) so the owner sign-in does not change.
+
 ## Step 3. Put the v8 code in GitHub (Halimat, 15 min)
 
 Unzip `stockwise-starter-v8.zip` into **Downloads**. In Terminal, paste these lines **one at a time**:

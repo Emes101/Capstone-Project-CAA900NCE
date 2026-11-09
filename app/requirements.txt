@@ -2,3 +2,4 @@ flask==3.1.*
 gunicorn==23.*
 pymongo==4.*
 azure-monitor-opentelemetry==1.*
+azure-communication-email==1.*

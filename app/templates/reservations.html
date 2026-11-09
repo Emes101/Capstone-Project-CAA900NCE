@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}My reservations{% endblock %}
+{% block content %}
+<h1>My reservations</h1>
+<p class="muted">We hold reserved items at the store. Pay when you pick them up.</p>
+{% if reservations %}
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Price each</th><th>Reserved on</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for r in reservations %}
+    <tr>
+      <td>{{ r.product_name }}</td>
+      <td class="num">{{ r.quantity }}</td>
+      <td class="num">${{ '%.2f' % r.price }}</td>
+      <td>{{ r.created_at[:10] }}</td>
+      <td><span class="pill pill-{{ 'low' if r.status == 'reserved' else ('in' if r.status == 'picked_up' else 'out') }}">{{ r.status_label }}</span></td>
+      <td>
+        {% if r.status == 'reserved' %}
+        <form method="post" action="{{ url_for('cancel_my_reservation', reservation_id=r.id) }}" class="inline">
+          <button type="submit" class="secondary">Cancel</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">You have no reservations yet. <a href="{{ url_for('customer') }}">Browse products</a></p>
+{% endif %}
+{% endblock %}

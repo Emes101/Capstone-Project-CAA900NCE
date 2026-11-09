@@ -10,12 +10,15 @@ import json
 from pymongo import ReturnDocument
 from pymongo.errors import BulkWriteError
 
-from inventory import DATA_FILE, STATUS_LABELS, Inventory, StockError
+from inventory import (DATA_FILE, STATUS_LABELS, Inventory,
+                       StockError, check_new_status, new_reservation, now_iso,
+                       reservation_view)
 
 
 class MongoInventory:
     status = staticmethod(Inventory.status)
     _check_quantity = staticmethod(Inventory._check_quantity)
+    _check_reserve_quantity = classmethod(Inventory._check_reserve_quantity.__func__)
 
     def __init__(self, collection):
         self.products = collection
@@ -26,7 +29,16 @@ class MongoInventory:
         client = MongoClient(uri, serverSelectionTimeoutMS=10000)
         inventory = cls(client[database]["products"])
         inventory.seed_if_empty(seed_file)
+        inventory.ensure_indexes()
         return inventory
+
+    def ensure_indexes(self):
+        """Indexes that make reservation lookups fast. Safe to run every start."""
+        for field in ("reservations.id", "reservations.customer_email"):
+            try:
+                self.products.create_index(field)
+            except Exception:
+                pass  # the app still works without them, just a little slower
 
     def seed_if_empty(self, seed_file=DATA_FILE):
         """Load the sample products the first time the database is used."""
@@ -107,3 +119,55 @@ class MongoInventory:
         if updated is None:
             raise StockError(f"Unknown product: {sku}")
         return self._clean(updated)
+
+    # ---------- Reservations ----------
+    # Each reservation is stored in its product document, so one atomic update
+    # both takes the units out of stock and saves the reservation.
+
+    def reserve(self, sku, quantity, customer_email, customer_name):
+        quantity = self._check_reserve_quantity(quantity)
+        reservation = new_reservation(quantity, customer_email, customer_name)
+        updated = self.products.find_one_and_update(
+            {"sku": sku, "stock": {"$gte": quantity}},
+            {"$inc": {"stock": -quantity}, "$push": {"reservations": reservation}},
+            return_document=ReturnDocument.AFTER,
+        )
+        if updated is None:
+            product = self.get(sku)  # raises StockError if the product does not exist
+            raise StockError(
+                f"Only {product['stock']} of {product['name']} left; cannot reserve {quantity}."
+            )
+        product = self._clean(updated)
+        return product, reservation_view(product, reservation)
+
+    def reservations(self, customer_email=None, status=None):
+        query = {"reservations.customer_email": customer_email} if customer_email else {"reservations": {"$exists": True, "$ne": []}}
+        views = []
+        for doc in self.products.find(query, {"_id": 0}):
+            for r in doc.get("reservations", []):
+                if (customer_email is None or r["customer_email"] == customer_email) and \
+                        (status is None or r["status"] == status):
+                    views.append(reservation_view(doc, r))
+        return sorted(views, key=lambda v: v["created_at"], reverse=True)
+
+    def set_reservation_status(self, reservation_id, new_status, customer_email=None):
+        doc = self.products.find_one({"reservations.id": reservation_id}, {"_id": 0})
+        reservation = next((r for r in (doc or {}).get("reservations", []) if r["id"] == reservation_id), None)
+        if reservation is None:
+            raise StockError("Reservation not found.")
+        give_back = check_new_status(reservation, new_status, customer_email)
+        update = {"$set": {"reservations.$.status": new_status, "reservations.$.updated_at": now_iso()}}
+        if give_back:
+            update["$inc"] = {"stock": give_back}
+        # Only succeeds if the reservation is still "reserved", so a reservation
+        # can never be cancelled twice (which would add the units back twice).
+        updated = self.products.find_one_and_update(
+            {"sku": doc["sku"], "reservations": {"$elemMatch": {"id": reservation_id, "status": "reserved"}}},
+            update,
+            return_document=ReturnDocument.AFTER,
+        )
+        if updated is None:
+            raise StockError("This reservation was just changed. Please refresh the page.")
+        product = self._clean(updated)
+        changed = next(r for r in product["reservations"] if r["id"] == reservation_id)
+        return product, reservation_view(product, changed)

@@ -23,6 +23,7 @@
       <nav class="account-nav">
         {% if user %}
         <a href="{{ url_for('customer') }}">Shop</a>
+        {% if not is_owner %}<a href="{{ url_for('my_reservations') }}">My reservations</a>{% endif %}
         <span class="area-label signed-in">Signed in as {{ user.name }}</span>
         <form method="post" action="{{ url_for('logout') }}" class="inline-nav"><button type="submit" class="link-button">Sign out</button></form>
         {% else %}

@@ -20,3 +20,8 @@ app.zip
 .idea/
 .DS_Store
 Thumbs.db
+
+# Database backups (customer emails and password hashes) and YOLO output
+backups/
+scan-results/
+*.pt
